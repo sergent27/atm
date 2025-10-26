@@ -1,0 +1,40 @@
+CREATE TABLE transactions (
+    txn_id INT AUTO_INCREMENT PRIMARY KEY,
+    acc_no VARCHAR(20),
+    txn_type ENUM('Deposit','Withdraw') NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    txn_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (acc_no) REFERENCES users(acc_no)
+);
+
+CREATE TABLE admins (
+    admin_id VARCHAR(20) PRIMARY KEY,
+    password VARCHAR(20) NOT NULL
+);
+
+CREATE TABLE cards (
+    card_no VARCHAR(16) PRIMARY KEY,
+    acc_no VARCHAR(20),
+    expiry_date DATE,
+    cvv INT,
+    FOREIGN KEY (acc_no) REFERENCES users(acc_no)
+);
+
+CREATE TABLE login_logs (
+    log_id INT AUTO_INCREMENT PRIMARY KEY,
+    acc_no VARCHAR(20),
+    login_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status ENUM('Success','Failure')
+);
+
+
+
+INSERT INTO users (acc_no, name, pin, balance) VALUES
+('AC1001', 'Priyanshu Supyal', '1234', 5000.00),
+('AC1002', 'Manish Mishra', '5678', 3000.00),
+('AC1003', 'Prathmesh Mehta', '4321', 7000.00);
+
+
+INSERT INTO admins (admin_id, password) VALUES
+('admin1', 'admin123'),
+('manager', 'atm2025');
