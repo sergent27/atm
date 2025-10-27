@@ -1,0 +1,434 @@
+import mysql.connector
+
+conn = mysql.connector.connect( host="localhost",user="root", password="dbms", database="atm")
+cursor = conn.cursor()
+print("✅ Database connected successfully!")
+
+
+def main_menu():
+    while True:
+        print("\n======= ATM SYSTEM =======")
+        print("1. Admin Login 👨‍💼")
+        print("2. User Login 👤")
+        print("3. Exit 🚪")
+        choice = input("Enter choice: ")
+
+        if choice == '1':
+            admin_login()
+        elif choice == '2':
+            user_login()
+        elif choice == '3':
+            print("Exiting... Thank you for using our ATM system!")
+            break
+        else:
+            print("❌ Invalid choice. Try again.")
+
+
+
+
+
+
+# --- Admin Login ---
+def admin_login():
+    print("\n--- Admin Login ---")
+    admin_id = input("Enter Admin ID: ")
+    admin_password = input("Enter Password: ")
+
+    cursor.execute("SELECT * FROM admins WHERE admin_id=%s AND password=%s", (admin_id, admin_password))
+    result = cursor.fetchone()
+
+    if result:
+        print("✅ Admin login successful.")
+        admin_menu()
+    else:
+        print("❌ Invalid Admin credentials.")
+
+
+
+
+
+# --- Admin Menu ---
+def admin_menu():
+    while True:
+        print("\n--- ADMIN MENU ---")
+        print("1. View All Users")
+        print("2. Add User")
+        print("3. Delete User")
+        print("4. Back")
+        choice = input("Enter choice: ")
+
+        if choice == '1':
+            view_all_users()
+        elif choice == '2':
+            add_user()
+        elif choice == '3':
+            delete_user()
+        elif choice == '4':
+            break
+        else:
+            print("Invalid choice.")
+
+
+
+
+
+def view_all_users():
+    cursor.execute("SELECT * FROM users")
+    users = cursor.fetchall()
+    print("\n--- User List ---")
+    for u in users:
+        print(f"Acc No: {u[0]}, Name: {u[1]}, Balance: Rs.{u[3]}")
+
+
+
+
+def add_user():
+    acc_no = input("Enter new Account Number: ")
+    name = input("Enter Name: ")
+    pin = input("Enter PIN: ")
+    cursor.execute("INSERT INTO users (acc_no, name, pin, balance) VALUES (%s, %s, %s, %s)", (acc_no, name, pin, 0))
+    conn.commit()
+    print("✅ User added successfully.")
+
+
+
+
+
+def delete_user():
+    acc_no = input("Enter Account Number to delete: ")
+    cursor.execute("DELETE FROM users WHERE acc_no=%s", (acc_no,))
+    conn.commit()
+    print("🗑️ User deleted successfully.")
+
+
+
+
+
+# --- User Login ---
+def user_login():
+    print("\n--- User Login ---")
+    acc_no = input("Enter Account Number: ")
+    pin = input("Enter PIN: ")
+
+    cursor.execute("SELECT * FROM users WHERE acc_no=%s AND pin=%s", (acc_no, pin))
+    result = cursor.fetchone()
+
+    if result:
+        print(f"✅ Welcome, {result[1]}!")
+        atm_menu(acc_no)
+    else:
+        print("❌ Invalid account or PIN.")
+
+
+
+
+
+def check_balance(acc_no):
+    cursor.execute("SELECT balance FROM users WHERE acc_no=%s", (acc_no,))
+    balance = cursor.fetchone()[0]
+    print("Your current balance is: Rs.", balance)
+
+
+
+
+
+def deposit_amount(acc_no):
+    amount = float(input("Enter amount to deposit: "))
+    cursor.execute("UPDATE users SET balance = balance + %s WHERE acc_no=%s", (amount, acc_no))
+    cursor.execute("INSERT INTO transactions (acc_no, txn_type, amount) VALUES (%s, 'Deposit', %s)", (acc_no, amount))
+    conn.commit()
+    print("✅ Rs.", amount, "deposited successfully.")
+
+
+
+
+
+def withdraw_amount(acc_no):
+    amount = float(input("Enter amount to withdraw: "))
+    cursor.execute("SELECT balance FROM users WHERE acc_no=%s", (acc_no,))
+    current_balance = cursor.fetchone()[0]
+
+    if amount <= current_balance:
+        cursor.execute("UPDATE users SET balance = balance - %s WHERE acc_no=%s", (amount, acc_no))
+        cursor.execute("INSERT INTO transactions (acc_no, txn_type, amount) VALUES (%s, 'Withdraw', %s)", (acc_no, amount))
+        conn.commit()
+        print("✅ Rs.", amount, "withdrawn successfully.")
+    else:
+        print("⚠️ Insufficient balance.")
+
+
+
+
+
+def change_pin(acc_no):
+    new_pin = input("Enter new 4-digit PIN: ")
+    cursor.execute("UPDATE users SET pin=%s WHERE acc_no=%s", (new_pin, acc_no))
+    conn.commit()
+    print("✅ PIN changed successfully.")
+
+
+
+
+
+def view_transactions(acc_no):
+    cursor.execute("SELECT txn_type, amount, txn_date FROM transactions WHERE acc_no=%s ORDER BY txn_date DESC LIMIT 5", (acc_no,))
+    txns = cursor.fetchall()
+    print("\n--- Recent Transactions ---")
+    for t in txns:
+        print(f"{t[2]} | {t[0]} | Rs.{t[1]}")
+
+
+
+
+
+        
+# --- ATM Menu for Users ---
+def atm_menu(acc_no):
+    while True:
+        print("\n--- ATM MENU ---")
+        print("1. Check Balance 💰")
+        print("2. Deposit 💵")
+        print("3. Withdraw 💸")
+        print("4. Change PIN 🔑")
+        print("5. View Transactions 🧾")
+        print("6. Logout 🔙")
+        choice = input("Enter choice: ")
+
+        if choice == '1':
+            check_balance(acc_no)
+        elif choice == '2':
+            deposit_amount(acc_no)
+        elif choice == '3':
+            withdraw_amount(acc_no)
+        elif choice == '4':
+            change_pin(acc_no)
+        elif choice == '5':
+            view_transactions(acc_no)
+        elif choice == '6':
+            print("👋 Logged out successfully.")
+            break
+        else:
+            print("❌ Invalid choice.")
+
+main_menu()
+import mysql.connector
+
+conn = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    password="dbms",
+    database="atm"
+)
+cursor = conn.cursor()
+print("✅ Database connected successfully!")
+
+
+
+
+
+def main_menu():
+    while True:
+        print("\n======= ATM SYSTEM =======")
+        print("1. Admin Login 👨‍💼")
+        print("2. User Login 👤")
+        print("3. Exit 🚪")
+        choice = input("Enter choice: ")
+
+        if choice == '1':
+            admin_login()
+        elif choice == '2':
+            user_login()
+        elif choice == '3':
+            print("Exiting... Thank you for using our ATM system!")
+            break
+        else:
+            print("❌ Invalid choice. Try again.")
+
+
+
+
+
+
+# --- Admin Login ---
+def admin_login():
+    print("\n--- Admin Login ---")
+    admin_id = input("Enter Admin ID: ")
+    admin_password = input("Enter Password: ")
+
+    cursor.execute("SELECT * FROM admins WHERE admin_id=%s AND password=%s", (admin_id, admin_password))
+    result = cursor.fetchone()
+
+    if result:
+        print("✅ Admin login successful.")
+        admin_menu()
+    else:
+        print("❌ Invalid Admin credentials.")
+
+
+
+
+
+# --- Admin Menu ---
+def admin_menu():
+    while True:
+        print("\n--- ADMIN MENU ---")
+        print("1. View All Users")
+        print("2. Add User")
+        print("3. Delete User")
+        print("4. Back")
+        choice = input("Enter choice: ")
+
+        if choice == '1':
+            view_all_users()
+        elif choice == '2':
+            add_user()
+        elif choice == '3':
+            delete_user()
+        elif choice == '4':
+            break
+        else:
+            print("Invalid choice.")
+
+
+
+
+
+def view_all_users():
+    cursor.execute("SELECT * FROM users")
+    users = cursor.fetchall()
+    print("\n--- User List ---")
+    for u in users:
+        print(f"Acc No: {u[0]}, Name: {u[1]}, Balance: Rs.{u[3]}")
+
+
+
+
+def add_user():
+    acc_no = input("Enter new Account Number: ")
+    name = input("Enter Name: ")
+    pin = input("Enter PIN: ")
+    cursor.execute("INSERT INTO users (acc_no, name, pin, balance) VALUES (%s, %s, %s, %s)", (acc_no, name, pin, 0))
+    conn.commit()
+    print("✅ User added successfully.")
+
+
+
+
+
+def delete_user():
+    acc_no = input("Enter Account Number to delete: ")
+    cursor.execute("DELETE FROM users WHERE acc_no=%s", (acc_no,))
+    conn.commit()
+    print("🗑️ User deleted successfully.")
+
+
+
+
+
+# --- User Login ---
+def user_login():
+    print("\n--- User Login ---")
+    acc_no = input("Enter Account Number: ")
+    pin = input("Enter PIN: ")
+
+    cursor.execute("SELECT * FROM users WHERE acc_no=%s AND pin=%s", (acc_no, pin))
+    result = cursor.fetchone()
+
+    if result:
+        print(f"✅ Welcome, {result[1]}!")
+        atm_menu(acc_no)
+    else:
+        print("❌ Invalid account or PIN.")
+
+
+
+
+
+def check_balance(acc_no):
+    cursor.execute("SELECT balance FROM users WHERE acc_no=%s", (acc_no,))
+    balance = cursor.fetchone()[0]
+    print("Your current balance is: Rs.", balance)
+
+
+
+
+
+def deposit_amount(acc_no):
+    amount = float(input("Enter amount to deposit: "))
+    cursor.execute("UPDATE users SET balance = balance + %s WHERE acc_no=%s", (amount, acc_no))
+    cursor.execute("INSERT INTO transactions (acc_no, txn_type, amount) VALUES (%s, 'Deposit', %s)", (acc_no, amount))
+    conn.commit()
+    print("✅ Rs.", amount, "deposited successfully.")
+
+
+
+
+
+def withdraw_amount(acc_no):
+    amount = float(input("Enter amount to withdraw: "))
+    cursor.execute("SELECT balance FROM users WHERE acc_no=%s", (acc_no,))
+    current_balance = cursor.fetchone()[0]
+
+    if amount <= current_balance:
+        cursor.execute("UPDATE users SET balance = balance - %s WHERE acc_no=%s", (amount, acc_no))
+        cursor.execute("INSERT INTO transactions (acc_no, txn_type, amount) VALUES (%s, 'Withdraw', %s)", (acc_no, amount))
+        conn.commit()
+        print("✅ Rs.", amount, "withdrawn successfully.")
+    else:
+        print("⚠️ Insufficient balance.")
+
+
+
+
+
+def change_pin(acc_no):
+    new_pin = input("Enter new 4-digit PIN: ")
+    cursor.execute("UPDATE users SET pin=%s WHERE acc_no=%s", (new_pin, acc_no))
+    conn.commit()
+    print("✅ PIN changed successfully.")
+
+
+
+
+
+def view_transactions(acc_no):
+    cursor.execute("SELECT txn_type, amount, txn_date FROM transactions WHERE acc_no=%s ORDER BY txn_date DESC LIMIT 5", (acc_no,))
+    txns = cursor.fetchall()
+    print("\n--- Recent Transactions ---")
+    for t in txns:
+        print(f"{t[2]} | {t[0]} | Rs.{t[1]}")
+
+
+
+
+
+        
+# --- ATM Menu for Users ---
+def atm_menu(acc_no):
+    while True:
+        print("\n--- ATM MENU ---")
+        print("1. Check Balance 💰")
+        print("2. Deposit 💵")
+        print("3. Withdraw 💸")
+        print("4. Change PIN 🔑")
+        print("5. View Transactions 🧾")
+        print("6. Logout 🔙")
+        choice = input("Enter choice: ")
+
+        if choice == '1':
+            check_balance(acc_no)
+        elif choice == '2':
+            deposit_amount(acc_no)
+        elif choice == '3':
+            withdraw_amount(acc_no)
+        elif choice == '4':
+            change_pin(acc_no)
+        elif choice == '5':
+            view_transactions(acc_no)
+        elif choice == '6':
+            print("👋 Logged out successfully.")
+            break
+        else:
+            print("❌ Invalid choice.")
+
+main_menu()
