@@ -1,0 +1,121 @@
+# ATM Project with Tkinter GUI + MySQL Backend
+# --------------------------------------------
+# By: <Your Names>
+
+import mysql.connector
+import tkinter as tk
+from tkinter import messagebox
+
+# ------------------ DATABASE CONNECTION ------------------
+conn = mysql.connector.connect(
+    host="localhost",
+    user="root",      # Replace with your MySQL username
+    password="dbms",  # Replace with your MySQL password
+    database="atm"          # Replace with your database name
+)
+cursor = conn.cursor()
+
+# ------------------ MAIN WINDOW ------------------
+root = tk.Tk()
+root.title("ATM System")
+root.geometry("400x400")
+root.config(bg="#e8f0fe")
+
+# ------------------ FUNCTIONS ------------------
+
+def user_login():
+    acc_no = entry_acc.get()
+    pin = entry_pin.get()
+
+    cursor.execute("SELECT * FROM users WHERE acc_no=%s AND pin=%s", (acc_no, pin))
+    result = cursor.fetchone()
+
+    if result:
+        messagebox.showinfo("Success", "Login Successful!")
+        atm_menu(acc_no)
+    else:
+        messagebox.showerror("Error", "Invalid Account Number or PIN")
+
+def check_balance(acc_no):
+    cursor.execute("SELECT balance FROM users WHERE acc_no=%s", (acc_no,))
+    balance = cursor.fetchone()[0]
+    messagebox.showinfo("Balance", "Your current balance is Rs. " + str(balance))
+
+def deposit_amount(acc_no):
+    def deposit_now():
+        amt = float(entry_amt.get())
+        cursor.execute("UPDATE users SET balance = balance + %s WHERE acc_no=%s", (amt, acc_no))
+        conn.commit()
+        messagebox.showinfo("Success", "Rs. " + str(amt) + " deposited successfully!")
+        deposit_win.destroy()
+
+    deposit_win = tk.Toplevel(root)
+    deposit_win.title("Deposit Money")
+    tk.Label(deposit_win, text="Enter Amount:").pack(pady=10)
+    entry_amt = tk.Entry(deposit_win)
+    entry_amt.pack(pady=5)
+    tk.Button(deposit_win, text="Deposit", command=deposit_now).pack(pady=10)
+
+def withdraw_amount(acc_no):
+    def withdraw_now():
+        amt = float(entry_amt.get())
+        cursor.execute("SELECT balance FROM users WHERE acc_no=%s", (acc_no,))
+        bal = cursor.fetchone()[0]
+        if amt <= bal:
+            cursor.execute("UPDATE users SET balance = balance - %s WHERE acc_no=%s", (amt, acc_no))
+            conn.commit()
+            messagebox.showinfo("Success", "Rs. " + str(amt) + " withdrawn successfully!")
+        else:
+            messagebox.showerror("Error", "Insufficient Balance!")
+        withdraw_win.destroy()
+
+    withdraw_win = tk.Toplevel(root)
+    withdraw_win.title("Withdraw Money")
+    tk.Label(withdraw_win, text="Enter Amount:").pack(pady=10)
+    entry_amt = tk.Entry(withdraw_win)
+    entry_amt.pack(pady=5)
+    tk.Button(withdraw_win, text="Withdraw", command=withdraw_now).pack(pady=10)
+
+def change_pin(acc_no):
+    def update_pin():
+        new_pin = entry_new_pin.get()
+        cursor.execute("UPDATE users SET pin=%s WHERE acc_no=%s", (new_pin, acc_no))
+        conn.commit()
+        messagebox.showinfo("Success", "PIN changed successfully!")
+        pin_win.destroy()
+
+    pin_win = tk.Toplevel(root)
+    pin_win.title("Change PIN")
+    tk.Label(pin_win, text="Enter New PIN:").pack(pady=10)
+    entry_new_pin = tk.Entry(pin_win, show="*")
+    entry_new_pin.pack(pady=5)
+    tk.Button(pin_win, text="Change", command=update_pin).pack(pady=10)
+
+def atm_menu(acc_no):
+    menu = tk.Toplevel(root)
+    menu.title("ATM Menu")
+    menu.geometry("300x350")
+    menu.config(bg="#f5f5f5")
+
+    tk.Label(menu, text="Welcome to ATM", font=("Arial", 16, "bold"), bg="#f5f5f5").pack(pady=15)
+    tk.Button(menu, text="Check Balance", width=20, command=lambda: check_balance(acc_no)).pack(pady=8)
+    tk.Button(menu, text="Deposit Money", width=20, command=lambda: deposit_amount(acc_no)).pack(pady=8)
+    tk.Button(menu, text="Withdraw Money", width=20, command=lambda: withdraw_amount(acc_no)).pack(pady=8)
+    tk.Button(menu, text="Change PIN", width=20, command=lambda: change_pin(acc_no)).pack(pady=8)
+    tk.Button(menu, text="Logout", width=20, command=menu.destroy).pack(pady=20)
+
+# ------------------ LOGIN SCREEN ------------------
+tk.Label(root, text="ATM LOGIN", font=("Arial", 18, "bold"), bg="#e8f0fe", fg="#1a237e").pack(pady=20)
+tk.Label(root, text="Account Number:", bg="#e8f0fe").pack(pady=5)
+entry_acc = tk.Entry(root)
+entry_acc.pack(pady=5)
+
+tk.Label(root, text="PIN:", bg="#e8f0fe").pack(pady=5)
+entry_pin = tk.Entry(root, show="*")
+entry_pin.pack(pady=5)
+
+tk.Button(root, text="Login", width=15, bg="#1a73e8", fg="white", command=user_login).pack(pady=20)
+tk.Button(root, text="Exit", width=15, bg="#c62828", fg="white", command=root.destroy).pack(pady=5)
+
+# ------------------ RUN GUI ------------------
+root.mainloop()
