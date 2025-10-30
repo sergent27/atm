@@ -1,0 +1,36 @@
+def view_all_users():
+    clear_screen()
+    cursor.execute("SELECT * FROM users")
+    users = cursor.fetchall()
+
+    # column widths
+    w_acc = 12
+    w_name = 25
+    w_pin = 34     # PIN(4) + ~30 spaces
+    w_bal = 12
+
+    # total width = columns + separators
+    total = w_acc + w_name + w_pin + w_bal + 13
+
+    print("\n" + "-" * total)
+    print(center_text("--- USER LIST ---", total))
+    print("-" * total)
+
+    # HEADER
+    print("| {0:<" + str(w_acc) + "} | {1:<" + str(w_name) + "} | {2:<" + str(w_pin) + "} | {3:<" + str(w_bal) + "} |"
+          .format("Account No", "Name", "PIN", "Balance (Rs)"))
+
+    print("-" * total)
+
+    # DATA ROWS
+    for u in users:
+        acc = str(u[0])
+        name = str(u[1])
+        pin = str(u[2]) + " " * 30    # EXTRA SPACES
+        bal = str(u[3])
+
+        print("| {0:<" + str(w_acc) + "} | {1:<" + str(w_name) + "} | {2:<" + str(w_pin) + "} | {3:<" + str(w_bal) + "} |"
+              .format(acc, name, pin, bal))
+
+    print("-" * total)
+    raw_input("Press Enter to return...")
