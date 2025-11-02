@@ -46,3 +46,23 @@ INSERT INTO users (acc_no, name, pin, balance) VALUES
 INSERT INTO admins (admin_id, password) VALUES
 ('admin1', 'admin123'),
 ('manager', 'atm2025');
+==============================================================================================================
+new update fd
+
+ALTER TABLE users 
+ADD phone_no VARCHAR(15),
+ADD address VARCHAR(255);
+
+CREATE TABLE IF NOT EXISTS fd_accounts (
+    fd_id INT AUTO_INCREMENT PRIMARY KEY,
+    account_no VARCHAR(20),
+    amount DECIMAL(10,2),
+    rate FLOAT,
+    start_date DATETIME,
+    mature_date DATETIME,
+    status VARCHAR(10)
+);
+
+
+ALTER TABLE transactions MODIFY txn_type VARCHAR(20);
+
