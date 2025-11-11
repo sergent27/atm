@@ -1,0 +1,658 @@
+#!/usr/bin/env python3
+"""
+ATM System - Full Program (Admin changes + FD support)
+
+Database connection parameters:
+ - host = "localhost"
+ - user = "root"
+ - password = "dbms"
+ - database = "atm"
+
+Make sure the following tables exist:
+ - users(acc_no VARCHAR PRIMARY KEY, name VARCHAR, pin VARCHAR, balance DECIMAL(12,2), phone_no VARCHAR(15), address VARCHAR(255))
+ - admins(admin_id VARCHAR PRIMARY KEY, password VARCHAR)
+ - transactions(txn_id INT AUTO_INCREMENT PRIMARY KEY, acc_no VARCHAR(20), txn_type VARCHAR(20), amount DECIMAL(12,2), txn_date DATETIME DEFAULT CURRENT_TIMESTAMP)
+ - fd_accounts(fd_id INT AUTO_INCREMENT PRIMARY KEY, account_no VARCHAR(20), amount DECIMAL(12,2), rate FLOAT DEFAULT 6.5, start_date DATETIME, mature_date DATETIME, status VARCHAR(20) DEFAULT 'OPEN')
+"""
+
+import os
+import sys
+import mysql.connector
+from mysql.connector import Error
+from datetime import datetime, timedelta
+
+# --------------------------
+# Database connection setup
+# --------------------------
+DB_CONFIG = {
+    "host": "localhost",
+    "user": "root",
+    "password": "dbms",
+    "database": "atm"
+}
+
+try:
+    conn = mysql.connector.connect(**DB_CONFIG)
+    cursor = conn.cursor()
+    print("✅ Database connected successfully!")
+except Error as e:
+    print("❌ Database connection error:", e)
+    sys.exit(1)
+
+
+# --------------------------
+# Utility functions
+# --------------------------
+def clear_screen():
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+
+def center_text(text, width=70):
+    return str(text).center(width)
+
+
+def pause(msg="Press Enter to continue..."):
+    input(msg)
+
+
+# --------------------------
+# Admin functions
+# --------------------------
+def admin_login():
+    clear_screen()
+    print(center_text("--- ADMIN LOGIN ---"))
+    admin_id = input("Enter Admin ID: ").strip()
+    admin_password = input("Enter Password: ").strip()
+    try:
+        cursor.execute("SELECT * FROM admins WHERE admin_id=%s AND password=%s", (admin_id, admin_password))
+        result = cursor.fetchone()
+    except Error as e:
+        print("DB error:", e)
+        pause()
+        return
+
+    if result:
+        print("✅ Admin login successful.")
+        pause()
+        admin_menu()
+    else:
+        print("❌ Invalid Admin credentials.")
+        pause()
+
+
+def admin_menu():
+    while True:
+        clear_screen()
+        print("\n" + "=" * 70)
+        print(center_text("--- ADMIN MENU ---"))
+        print("=" * 70)
+        print(center_text("1. Create Account 🆕"))
+        print(center_text("2. View All Users 📋"))
+        print(center_text("3. Update User ✏️"))
+        print(center_text("4. Delete User 🗑️"))
+        print(center_text("5. View Transactions 🧾"))
+        print(center_text("6. Back 🔙"))
+        print("=" * 70)
+
+        choice = input(center_text("Enter your choice: ")).strip()
+
+        if choice == '1':
+            create_account_admin()
+        elif choice == '2':
+            view_all_users()
+        elif choice == '3':
+            update_user()
+        elif choice == '4':
+            delete_user()
+        elif choice == '5':
+            admin_view_transactions()
+        elif choice == '6':
+            break
+        else:
+            print("❌ Invalid choice.")
+            pause()
+
+
+def create_account_admin():
+    clear_screen()
+    print(center_text("--- CREATE NEW ACCOUNT (Admin) ---"))
+    while True:
+        acc_no = input("Enter new Account Number: ").strip()
+        if acc_no == "":
+            print("Account number cannot be blank.")
+            continue
+        # check if already exists
+        cursor.execute("SELECT acc_no FROM users WHERE acc_no=%s", (acc_no,))
+        if cursor.fetchone():
+            print("Account number already exists. Choose another.")
+            continue
+        break
+
+    name = input("Enter Full Name: ").strip()
+    while True:
+        pin = input("Enter 4-digit PIN: ").strip()
+        if not (pin.isdigit() and len(pin) == 4):
+            print("PIN must be exactly 4 digits.")
+            continue
+        break
+
+    phone_no = input("Enter phone number (optional): ").strip()
+    address = input("Enter address (optional): ").strip()
+
+    try:
+        cursor.execute(
+            "INSERT INTO users (acc_no, name, pin, balance, phone_no, address) VALUES (%s, %s, %s, %s, %s, %s)",
+            (acc_no, name, pin, 0.00, phone_no if phone_no else None, address if address else None)
+        )
+        conn.commit()
+        print("✅ Account created successfully with Rs.0 balance.")
+    except Error as e:
+        conn.rollback()
+        print("❌ Failed to create account:", e)
+    pause()
+
+
+def view_all_users():
+    clear_screen()
+    try:
+        cursor.execute("SELECT acc_no, name, phone_no, address, balance FROM users")
+        users = cursor.fetchall()
+    except Error as e:
+        print("DB error:", e)
+        pause()
+        return
+
+    # Column widths
+    w_acc = 14
+    w_name = 25
+    w_phone = 15
+    w_addr = 28
+    w_bal = 12
+
+    total = w_acc + w_name + w_phone + w_addr + w_bal + 13
+    print("\n" + "-" * total)
+    print(center_text("--- USER LIST ---", total))
+    print("-" * total)
+
+    header = "| {0:<14} | {1:<25} | {2:<15} | {3:<28} | {4:<12} |".format(
+        "Account No", "Name", "Phone", "Address", "Balance (Rs)")
+    print(header)
+    print("-" * total)
+
+    for u in users:
+        acc = str(u[0])[:w_acc - 1]
+        name = str(u[1])[:w_name - 1]
+        phone = (str(u[2]) if u[2] is not None else "")[:w_phone - 1]
+        addr = (str(u[3]) if u[3] is not None else "")[:w_addr - 1]
+        bal = f"{u[4]:.2f}"
+        row = "| {0:<14} | {1:<25} | {2:<15} | {3:<28} | {4:<12} |".format(acc, name, phone, addr, bal)
+        print(row)
+
+    print("-" * total)
+    pause()
+
+
+def update_user():
+    clear_screen()
+    print(center_text("--- UPDATE USER DETAILS ---"))
+    acc_no = input("Enter Account Number to update: ").strip()
+    try:
+        cursor.execute("SELECT acc_no, name, phone_no, address FROM users WHERE acc_no=%s", (acc_no,))
+        user = cursor.fetchone()
+    except Error as e:
+        print("DB error:", e)
+        pause()
+        return
+
+    if not user:
+        print("No user found with that account number.")
+        pause()
+        return
+
+    print(f"Current Name : {user[1]}")
+    print(f"Current Phone: {user[2] if user[2] else ''}")
+    print(f"Current Addr : {user[3] if user[3] else ''}\n")
+
+    new_name = input("Enter new name (leave blank to keep current): ").strip()
+    new_phone = input("Enter new phone (leave blank to keep current): ").strip()
+    new_addr = input("Enter new address (leave blank to keep current): ").strip()
+
+    # Use current values if blank
+    if new_name == "":
+        new_name = user[1]
+    if new_phone == "":
+        new_phone = user[2]
+    if new_addr == "":
+        new_addr = user[3]
+
+    try:
+        cursor.execute(
+            "UPDATE users SET name=%s, phone_no=%s, address=%s WHERE acc_no=%s",
+            (new_name, new_phone, new_addr, acc_no)
+        )
+        conn.commit()
+        print("✅ User updated successfully.")
+    except Error as e:
+        conn.rollback()
+        print("❌ Update failed:", e)
+    pause()
+
+
+def delete_user():
+    clear_screen()
+    print(center_text("--- DELETE USER ---"))
+    acc_no = input("Enter Account Number to delete: ").strip()
+    if acc_no == "":
+        print("Account number cannot be blank.")
+        pause()
+        return
+    confirmation = input(f"Type 'YES' to permanently delete account {acc_no}: ").strip()
+    if confirmation != 'YES':
+        print("Deletion cancelled.")
+        pause()
+        return
+    try:
+        cursor.execute("DELETE FROM users WHERE acc_no=%s", (acc_no,))
+        conn.commit()
+        if cursor.rowcount == 0:
+            print("No user deleted — account not found.")
+        else:
+            print("🗑️ User deleted successfully.")
+    except Error as e:
+        conn.rollback()
+        print("❌ Delete failed:", e)
+    pause()
+
+
+def admin_view_transactions():
+    clear_screen()
+    print(center_text("--- ALL TRANSACTIONS (Latest 100) ---"))
+    try:
+        cursor.execute("SELECT txn_id, acc_no, txn_type, amount, txn_date FROM transactions ORDER BY txn_date DESC LIMIT 100")
+        txns = cursor.fetchall()
+    except Error as e:
+        print("DB error:", e)
+        pause()
+        return
+
+    print(f"{'Txn_ID':<8} {'Account':<14} {'Date':<20} {'Type':<10} {'Amount (Rs)':<12}")
+    print("-" * 68)
+    for t in txns:
+        txn_id = str(t[0])
+        acc = str(t[1])
+        typ = str(t[2])
+        amt = f"{t[3]:.2f}"
+        dt = t[4].strftime("%Y-%m-%d %H:%M:%S") if isinstance(t[4], datetime) else str(t[4])
+        print(f"{txn_id:<8} {acc:<14} {dt:<20} {typ:<10} {amt:<12}")
+    print("-" * 68)
+    pause()
+
+
+# --------------------------
+# User functions
+# --------------------------
+def user_login():
+    clear_screen()
+    print(center_text("--- USER LOGIN ---"))
+    acc_no = input("Enter Account Number: ").strip()
+    pin = input("Enter PIN: ").strip()
+    try:
+        cursor.execute("SELECT acc_no, name FROM users WHERE acc_no=%s AND pin=%s", (acc_no, pin))
+        result = cursor.fetchone()
+    except Error as e:
+        print("DB error:", e)
+        pause()
+        return
+
+    if result:
+        print(f"✅ Welcome, {result[1]}!")
+        pause()
+        atm_menu(acc_no)
+    else:
+        print("❌ Invalid account or PIN.")
+        pause()
+
+
+def atm_menu(acc_no):
+    while True:
+        clear_screen()
+        print("\n" + "=" * 70)
+        print(center_text("--- ATM MENU ---"))
+        print("=" * 70)
+        print(center_text("1. Check Balance 💰"))
+        print(center_text("2. Deposit 💵"))
+        print(center_text("3. Withdraw 💸"))
+        print(center_text("4. Change PIN 🔑"))
+        print(center_text("5. View Transactions 🧾"))
+        print(center_text("6. Fixed Deposit (FD) 🏦"))
+        print(center_text("7. Logout 🔙"))
+        print("=" * 70)
+
+        choice = input(center_text("Enter your choice: ")).strip()
+
+        if choice == '1':
+            check_balance(acc_no)
+        elif choice == '2':
+            deposit_amount(acc_no)
+        elif choice == '3':
+            withdraw_amount(acc_no)
+        elif choice == '4':
+            change_pin(acc_no)
+        elif choice == '5':
+            view_transactions(acc_no)
+        elif choice == '6':
+            fd_menu(acc_no)
+        elif choice == '7':
+            print(center_text("👋 Logged out successfully."))
+            pause()
+            break
+        else:
+            print(center_text("❌ Invalid choice."))
+            pause()
+
+
+def check_balance(acc_no):
+    try:
+        cursor.execute("SELECT balance FROM users WHERE acc_no=%s", (acc_no,))
+        res = cursor.fetchone()
+        if not res:
+            print("Account not found.")
+            pause()
+            return
+        balance = res[0]
+        print(center_text(f"Your current balance is: Rs.{balance:.2f}"))
+    except Error as e:
+        print("DB error:", e)
+    pause()
+
+
+def deposit_amount(acc_no):
+    try:
+        amount_str = input("Enter amount to deposit: ").strip()
+        amount = float(amount_str)
+        if amount <= 0:
+            print("Amount must be positive.")
+            pause()
+            return
+    except ValueError:
+        print("Invalid amount.")
+        pause()
+        return
+
+    try:
+        cursor.execute("UPDATE users SET balance = balance + %s WHERE acc_no=%s", (amount, acc_no))
+        cursor.execute("INSERT INTO transactions (acc_no, txn_type, amount) VALUES (%s, 'Deposit', %s)", (acc_no, amount))
+        conn.commit()
+        print(f"✅ Rs.{amount:.2f} deposited successfully.")
+    except Error as e:
+        conn.rollback()
+        print("❌ Transaction failed:", e)
+    pause()
+
+
+def withdraw_amount(acc_no):
+    try:
+        amount_str = input("Enter amount to withdraw: ").strip()
+        amount = float(amount_str)
+        if amount <= 0:
+            print("Amount must be positive.")
+            pause()
+            return
+    except ValueError:
+        print("Invalid amount.")
+        pause()
+        return
+
+    try:
+        cursor.execute("SELECT balance FROM users WHERE acc_no=%s", (acc_no,))
+        row = cursor.fetchone()
+        if not row:
+            print("Account not found.")
+            pause()
+            return
+        current_balance = float(row[0])
+    except Error as e:
+        print("DB error:", e)
+        pause()
+        return
+
+    if amount <= current_balance:
+        try:
+            cursor.execute("UPDATE users SET balance = balance - %s WHERE acc_no=%s", (amount, acc_no))
+            cursor.execute("INSERT INTO transactions (acc_no, txn_type, amount) VALUES (%s, 'Withdraw', %s)", (acc_no, amount))
+            conn.commit()
+            print(f"✅ Rs.{amount:.2f} withdrawn successfully.")
+        except Error as e:
+            conn.rollback()
+            print("❌ Withdrawal failed:", e)
+    else:
+        print("⚠️ Insufficient balance.")
+    pause()
+
+
+def change_pin(acc_no):
+    while True:
+        new_pin = input("Enter new 4-digit PIN: ").strip()
+        if not (new_pin.isdigit() and len(new_pin) == 4):
+            print("PIN must be exactly 4 digits.")
+            continue
+        confirm = input("Confirm new PIN: ").strip()
+        if new_pin != confirm:
+            print("PINs do not match.")
+            continue
+        break
+    try:
+        cursor.execute("UPDATE users SET pin=%s WHERE acc_no=%s", (new_pin, acc_no))
+        conn.commit()
+        print("✅ PIN changed successfully.")
+    except Error as e:
+        conn.rollback()
+        print("❌ Failed to change PIN:", e)
+    pause()
+
+
+def view_transactions(acc_no):
+    clear_screen()
+    print(center_text("--- Recent Transactions ---"))
+    try:
+        cursor.execute(
+            "SELECT txn_id, txn_date, txn_type, amount FROM transactions WHERE acc_no=%s ORDER BY txn_date DESC LIMIT 20",
+            (acc_no,)
+        )
+        txns = cursor.fetchall()
+    except Error as e:
+        print("DB error:", e)
+        pause()
+        return
+
+    if not txns:
+        print("No transactions found.")
+        pause()
+        return
+
+    # Pretty print
+    print(f"{'Txn_ID':<8} {'Date':<20} {'Type':<12} {'Amount (Rs)':<12}")
+    print("-" * 58)
+    for t in txns:
+        txn_id = str(t[0])
+        dt = t[1].strftime("%Y-%m-%d %H:%M:%S") if isinstance(t[1], datetime) else str(t[1])
+        typ = str(t[2])
+        amt = f"{t[3]:.2f}"
+        print(f"{txn_id:<8} {dt:<20} {typ:<12} {amt:<12}")
+    print("-" * 58)
+    pause()
+
+
+# --------------------------
+# Fixed Deposit (FD) functions
+# --------------------------
+FD_RATE = 6.5  # percent per annum (predefined)
+FD_MIN_AMOUNT = 1000.0
+FD_OPTIONS_MONTHS = { '1': 6, '2': 12, '3': 24 }  # choices
+
+def fd_menu(acc_no):
+    while True:
+        clear_screen()
+        print(center_text("--- FIXED DEPOSIT (FD) ---"))
+        print(center_text("1. Create FD"))
+        print(center_text("2. View My FDs"))
+        print(center_text("3. Back"))
+        choice = input(center_text("Enter your choice: ")).strip()
+        if choice == '1':
+            create_fd(acc_no)
+        elif choice == '2':
+            view_fd(acc_no)
+        elif choice == '3':
+            break
+        else:
+            print("Invalid choice.")
+            pause()
+
+
+def create_fd(acc_no):
+    clear_screen()
+    print(center_text("--- CREATE FIXED DEPOSIT ---"))
+    try:
+        amount_str = input("Enter FD amount (minimum Rs.1000): ").strip()
+        amount = float(amount_str)
+    except ValueError:
+        print("Invalid amount.")
+        pause()
+        return
+
+    if amount < FD_MIN_AMOUNT:
+        print(f"Minimum FD amount is Rs.{FD_MIN_AMOUNT:.2f}")
+        pause()
+        return
+
+    print("Choose FD tenure (predefined):")
+    print("1) 6 months")
+    print("2) 12 months")
+    print("3) 24 months")
+    choice = input("Enter option (1/2/3): ").strip()
+    if choice not in FD_OPTIONS_MONTHS:
+        print("Invalid option.")
+        pause()
+        return
+
+    months = FD_OPTIONS_MONTHS[choice]
+    years = months / 12.0
+    rate = FD_RATE
+    # simple interest
+    interest = (amount * rate * years) / 100.0
+    maturity_amount = amount + interest
+
+    start_dt = datetime.now()
+    mature_dt = start_dt + timedelta(days=30 * months)  # approximate, fine for demo
+
+    try:
+        cursor.execute(
+            "INSERT INTO fd_accounts (account_no, amount, rate, start_date, mature_date, status) VALUES (%s, %s, %s, %s, %s, %s)",
+            (acc_no, round(amount, 2), rate, start_dt, mature_dt, 'OPEN')
+        )
+        
+        cursor.execute(
+            "INSERT INTO transactions (acc_no, amount, txn_type, txn_date) VALUES (%s,%s,'FD',NOW())",
+            (acc_no, amount)
+        )
+            
+   
+        conn.commit()
+
+    
+        # reduce user available balance by FD amount
+        cursor.execute("UPDATE users SET balance = balance - %s WHERE acc_no=%s", (amount, acc_no))
+        conn.commit()
+        print("✅ FD created successfully.")
+        print(f"Principal: Rs.{amount:.2f}")
+        print(f"Tenure : {months} months")
+        print(f"Rate   : {rate:.2f}% p.a. (simple interest)")
+        print(f"Maturity Amount (approx): Rs.{maturity_amount:.2f}")
+        print(f"Matures on: {mature_dt.strftime('%Y-%m-%d %H:%M:%S')}")
+    except Error as e:
+        conn.rollback()
+        print("❌ Failed to create FD:", e)
+    pause()
+
+
+def view_fd(acc_no):
+    clear_screen()
+    print(center_text("--- MY FIXED DEPOSITS ---"))
+    try:
+        cursor.execute(
+            "SELECT fd_id, amount, rate, start_date, mature_date, status FROM fd_accounts WHERE account_no=%s ORDER BY start_date DESC",
+            (acc_no,)
+        )
+        fds = cursor.fetchall()
+    except Error as e:
+        print("DB error:", e)
+        pause()
+        return
+
+    if not fds:
+        print("No FDs found.")
+        pause()
+        return
+
+    print(f"{'FD_ID':<6} {'Amount (Rs)':<14} {'Rate%':<7} {'Start Date':<20} {'Mature Date':<20} {'Status':<8}")
+    print("-" * 80)
+    for f in fds:
+        fd_id = str(f[0])
+        amt = f"{f[1]:.2f}"
+        rate = f"{f[2]:.2f}"
+        sdt = f[3].strftime("%Y-%m-%d") if isinstance(f[3], datetime) else str(f[3])
+        mdt = f[4].strftime("%Y-%m-%d") if isinstance(f[4], datetime) else str(f[4])
+        status = f[5]
+        print(f"{fd_id:<6} {amt:<14} {rate:<7} {sdt:<20} {mdt:<20} {status:<8}")
+    print("-" * 80)
+    pause()
+
+
+# --------------------------
+# Main menu (note: no create account here)
+# --------------------------
+def main_menu():
+    while True:
+        clear_screen()
+        print("\n" + "=" * 70)
+        print(center_text("🏦 WELCOME TO ATM SYSTEM 🏦"))
+        print("=" * 70)
+        print(center_text("1. Admin Login 👨‍💼"))
+        print(center_text("2. User Login 👤"))
+        print(center_text("3. Exit 🚪"))
+        print("=" * 70)
+
+        choice = input(center_text("Enter your choice: ")).strip()
+
+        if choice == '1':
+            admin_login()
+        elif choice == '2':
+            user_login()
+        elif choice == '3':
+            print(center_text("👋 Thank you for using our ATM system!"))
+            # close DB
+            try:
+                cursor.close()
+                conn.close()
+            except:
+                pass
+            break
+        else:
+            print("❌ Invalid choice. Try again.")
+            pause()
+
+
+# --------------------------
+# Run program
+# --------------------------
+if __name__ == "__main__":
+    try:
+        main_menu()
+    except KeyboardInterrupt:
+        print("\nExiting...")
+    finally:
+        try:
+            cursor.close()
+            conn.close()
+        except:
+            pass
