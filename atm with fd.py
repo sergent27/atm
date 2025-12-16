@@ -1,26 +1,8 @@
-#!/usr/bin/env python3
-"""
-ATM System - Full Program (Admin changes + FD support)
-
-Database connection parameters:
- - host = "localhost"
- - user = "root"
- - password = "dbms"
- - database = "atm"
-
-Make sure the following tables exist:
- - users(acc_no VARCHAR PRIMARY KEY, name VARCHAR, pin VARCHAR, balance DECIMAL(12,2), phone_no VARCHAR(15), address VARCHAR(255))
- - admins(admin_id VARCHAR PRIMARY KEY, password VARCHAR)
- - transactions(txn_id INT AUTO_INCREMENT PRIMARY KEY, acc_no VARCHAR(20), txn_type VARCHAR(20), amount DECIMAL(12,2), txn_date DATETIME DEFAULT CURRENT_TIMESTAMP)
- - fd_accounts(fd_id INT AUTO_INCREMENT PRIMARY KEY, account_no VARCHAR(20), amount DECIMAL(12,2), rate FLOAT DEFAULT 6.5, start_date DATETIME, mature_date DATETIME, status VARCHAR(20) DEFAULT 'OPEN')
-"""
-
 import os
 import sys
 import mysql.connector
 from mysql.connector import Error
 from datetime import datetime, timedelta
-
 # --------------------------
 # Database connection setup
 # --------------------------
@@ -45,16 +27,10 @@ except Error as e:
 # --------------------------
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
-
-
 def center_text(text, width=70):
     return str(text).center(width)
-
-
 def pause(msg="Press Enter to continue..."):
     input(msg)
-
-
 # --------------------------
 # Admin functions
 # --------------------------
@@ -78,7 +54,6 @@ def admin_login():
     else:
         print("❌ Invalid Admin credentials.")
         pause()
-
 
 def admin_menu():
     while True:
@@ -111,8 +86,6 @@ def admin_menu():
         else:
             print("❌ Invalid choice.")
             pause()
-
-
 def create_account_admin():
     clear_screen()
     print(center_text("--- CREATE NEW ACCOUNT (Admin) ---"))
@@ -127,7 +100,6 @@ def create_account_admin():
             print("Account number already exists. Choose another.")
             continue
         break
-
     name = input("Enter Full Name: ").strip()
     while True:
         pin = input("Enter 4-digit PIN: ").strip()
@@ -135,10 +107,8 @@ def create_account_admin():
             print("PIN must be exactly 4 digits.")
             continue
         break
-
     phone_no = input("Enter phone number (optional): ").strip()
     address = input("Enter address (optional): ").strip()
-
     try:
         cursor.execute(
             "INSERT INTO users (acc_no, name, pin, balance, phone_no, address) VALUES (%s, %s, %s, %s, %s, %s)",
@@ -150,8 +120,6 @@ def create_account_admin():
         conn.rollback()
         print("❌ Failed to create account:", e)
     pause()
-
-
 def view_all_users():
     clear_screen()
     try:
@@ -161,7 +129,6 @@ def view_all_users():
         print("DB error:", e)
         pause()
         return
-
     # Column widths
     w_acc = 14
     w_name = 25
@@ -482,7 +449,6 @@ def view_transactions(acc_no):
     print("-" * 58)
     pause()
 
-
 # --------------------------
 # Fixed Deposit (FD) functions
 # --------------------------
@@ -573,8 +539,6 @@ def create_fd(acc_no):
         conn.rollback()
         print("❌ Failed to create FD:", e)
     pause()
-
-
 def view_fd(acc_no):
     clear_screen()
     print(center_text("--- MY FIXED DEPOSITS ---"))
@@ -606,8 +570,6 @@ def view_fd(acc_no):
         print(f"{fd_id:<6} {amt:<14} {rate:<7} {sdt:<20} {mdt:<20} {status:<8}")
     print("-" * 80)
     pause()
-
-
 # --------------------------
 # Main menu (note: no create account here)
 # --------------------------
@@ -640,8 +602,6 @@ def main_menu():
         else:
             print("❌ Invalid choice. Try again.")
             pause()
-
-
 # --------------------------
 # Run program
 # --------------------------
