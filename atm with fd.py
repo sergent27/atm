@@ -26,7 +26,7 @@ except Error as e:
 # Utility functions
 # --------------------------
 def clear_screen():
-    os.system('cls' if os.name == 'nt' else 'clear')
+    os.system('cls')
 def center_text(text, width=70):
     return str(text).center(width)
 def pause(msg="Press Enter to continue..."):
@@ -616,3 +616,4 @@ if __name__ == "__main__":
             conn.close()
         except:
             pass
+
