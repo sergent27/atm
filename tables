@@ -20,13 +20,6 @@ CREATE TABLE admins (
     password VARCHAR(20) NOT NULL
 );
 
-CREATE TABLE cards (
-    card_no VARCHAR(16) PRIMARY KEY,
-    acc_no VARCHAR(20),
-    expiry_date DATE,
-    cvv INT,
-    FOREIGN KEY (acc_no) REFERENCES users(acc_no)
-);
 
 CREATE TABLE login_logs (
     log_id INT AUTO_INCREMENT PRIMARY KEY,
