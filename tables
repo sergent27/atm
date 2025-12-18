@@ -7,15 +7,15 @@ CREATE TABLE users (
     address VARCHAR(255)
 );
 
-
 CREATE TABLE transactions (
     txn_id INT AUTO_INCREMENT PRIMARY KEY,
     acc_no VARCHAR(20),
-    txn_type ENUM('Deposit','Withdraw') NOT NULL,
+    txn_type VARCHAR(20) NOT NULL,
     amount DECIMAL(10,2) NOT NULL,
     txn_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (acc_no) REFERENCES users(acc_no)
 );
+
 
 CREATE TABLE admins (
     admin_id VARCHAR(20) PRIMARY KEY,
@@ -41,7 +41,6 @@ INSERT INTO users (acc_no, name, pin, balance) VALUES
 INSERT INTO admins (admin_id, password) VALUES
 ('admin1', 'admin123'),
 ('manager', 'atm2025');
-==============================================================================================================
 
 
 CREATE TABLE IF NOT EXISTS fd_accounts (
@@ -55,5 +54,4 @@ CREATE TABLE IF NOT EXISTS fd_accounts (
 );
 
 
-ALTER TABLE transactions MODIFY txn_type VARCHAR(20);
 
