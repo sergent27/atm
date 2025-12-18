@@ -4,7 +4,7 @@ CREATE TABLE users (
     pin VARCHAR(10) NOT NULL,
     balance DECIMAL(10,2) DEFAULT 0.00
     phone_no VARCHAR(15),
-    address VARCHAR(255);
+    address VARCHAR(255)
 );
 
 
