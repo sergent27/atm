@@ -9,8 +9,8 @@ from datetime import datetime, timedelta
 DB_CONFIG = {
     "host": "localhost",
     "user": "root",
-    "password": 'SjPt@202040',
-    "database": "ATM"
+    "password": 'dbms',
+    "database": "atm"
 }
 
 try:
